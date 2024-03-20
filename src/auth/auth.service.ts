@@ -1,12 +1,16 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { User } from "@prisma/client";
 import { PrismaService } from "src/prisma/prisma.service";
 import { AuthRegisterDTO } from "./dto/auth-register.dto";
 import { UserService } from "src/user/user.service";
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
+
+    private issuer = 'login';
+    private audience = 'user';
 
     constructor(
         private readonly jwtService: JwtService,
@@ -14,8 +18,8 @@ export class AuthService {
         private readonly userService: UserService
     ) { }
 
-    async createToken(user: User) {
-        
+    createToken(user: User) {
+
         return {
 
             accessToken: this.jwtService.sign({
@@ -28,8 +32,8 @@ export class AuthService {
 
                 expiresIn: "7 days",
                 subject: String(user.id),
-                issuer: "login",
-                audience: "Users"
+                issuer: this.issuer,
+                audience: this.audience
 
             })
 
@@ -38,8 +42,38 @@ export class AuthService {
 
     }
 
-    async checkToken(token: string) {
-        //return this.jwtService.verify()
+    checkToken(token: string) {
+
+        try {
+
+            const data = this.jwtService.verify(token, {
+                audience: this.audience,
+                issuer: this.issuer
+            })
+
+            return data;
+
+        } catch (e) {
+
+            throw new BadRequestException(e);
+
+        }
+
+    }
+
+    isValidToken(token: string) {
+
+        try {
+
+            this.checkToken(token);
+            return true;
+
+        } catch (e) {
+
+            return false;
+
+        }
+
     }
 
     async login(email: string, password: string) {
@@ -47,11 +81,14 @@ export class AuthService {
         const user = await this.prisma.user.findFirst({
             where: {
                 email,
-                password
             }
         })
 
         if (!user) {
+            throw new UnauthorizedException('E-mail e/ou senha incorretos.')
+        }
+
+        if (!await bcrypt.compare(password, user.password)) {
             throw new UnauthorizedException('E-mail e/ou senha incorretos.')
         }
 

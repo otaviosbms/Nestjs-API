@@ -3,6 +3,7 @@ import { CreateUserDTO } from "./dto/create-user.dto";
 import { PrismaService } from "src/prisma/prisma.service";
 import { UpdatePatchUserDTO } from "./dto/update-patch-user.dto";
 import { UpdatePutUserDTO } from "./dto/update-put-user.dto";
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class UserService {
@@ -10,6 +11,10 @@ export class UserService {
     constructor(private readonly prisma: PrismaService) { }
 
     async create(data: CreateUserDTO) {
+
+        const salt = await bcrypt.genSalt()
+
+        data.password = await bcrypt.hash(data.password, salt)
 
         return this.prisma.user.create({
             data: data
@@ -31,17 +36,25 @@ export class UserService {
         })
     }
 
-    async update(id: number, { name, email, password, birthAt }: UpdatePutUserDTO) {
+    async update(id: number, { name, email, password, birthAt, role }: UpdatePutUserDTO) {
+
+        await this.exists(id);
+
+        const salt = await bcrypt.genSalt()
+
+        password = await bcrypt.hash(password, salt)
 
         return this.prisma.user.update({
-            data: { name, email, password, birthAt: birthAt ? new Date(birthAt) : null },
+            data: { name, email, password, birthAt: birthAt ? new Date(birthAt) : null, role }, 
             where: {
                 id
             }
         })
     }
 
-    async updatePartial(id: number, { name, email, password, birthAt }: UpdatePatchUserDTO) {
+    async updatePartial(id: number, { name, email, password, birthAt, role }: UpdatePatchUserDTO) {
+
+        await this.exists(id)
 
         const data: any = {};
 
@@ -58,7 +71,14 @@ export class UserService {
         }
 
         if (password) {
-            data.password = password
+
+            const salt = await bcrypt.genSalt()
+            data.password = await bcrypt.hash(password, salt)
+
+        }
+
+        if (role) {
+            data.role = role;
         }
 
         return this.prisma.user.update({
@@ -89,6 +109,5 @@ export class UserService {
             throw new NotFoundException(`O usuário ${id} não existe`);
         }
     }
-
 
 }
