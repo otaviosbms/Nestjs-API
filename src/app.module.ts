@@ -4,13 +4,11 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { authModule } from './auth/auth.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot({
-      ttl:60,
-      limit:10
-    }),
+    ConfigModule.forRoot(),
     forwardRef(()=>UserModule),
     forwardRef(()=>authModule)
   ],
